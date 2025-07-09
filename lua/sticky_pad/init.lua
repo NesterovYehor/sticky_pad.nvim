@@ -1,5 +1,6 @@
 local M = {}
-
+local dashboard = require("sticky_pad.dashboard")
+local stickers = require("sticky_pad.sticker")
 
 local function expand_path(path)
   if path:sub(1, 1) == "~" then
@@ -9,8 +10,8 @@ local function expand_path(path)
 end
 
 local function win_config()
-  local width = math.min(math.floor(vim.o.columns * 0.4), 30)
-  local height = math.min(math.floor(vim.o.lines * 0.8), 50)
+  local width = math.min(math.floor(vim.o.columns * 0.1), 50)
+  local height = math.min(math.floor(vim.o.lines * 0.1), 50)
   return {
     relative = "editor",
     width = width,
@@ -51,6 +52,21 @@ local function setup_user_commands(opts)
   vim.api.nvim_create_user_command("Td", function()
     vim.notify("Hello from todo.lua!")
     open_floating_file(setup_user_commands(opts))
+  end, {})
+  vim.api.nvim_create_user_command("CreateDashboard", function()
+    dashboard.create_dashboard()
+  end, {})
+  vim.api.nvim_create_user_command("NewSticker", function()
+    stickers.new()
+  end, {})
+  vim.api.nvim_create_user_command("ShowDashboard", function()
+    local callback = function(file_path)
+      stickers.show(file_path)
+    end
+    dashboard.show(callback)
+  end, {})
+  vim.api.nvim_create_user_command("RS", function()
+    stickers.remove()
   end, {})
   return targe_file
 end
