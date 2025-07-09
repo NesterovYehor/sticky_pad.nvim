@@ -1,0 +1,6 @@
+{
+    "diagnostics.globals": [
+        "vim",
+        "get_root_dir"
+    ]
+}
