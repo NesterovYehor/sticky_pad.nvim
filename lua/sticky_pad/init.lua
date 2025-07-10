@@ -68,6 +68,12 @@ local function setup_user_commands(opts)
   vim.api.nvim_create_user_command("RS", function()
     stickers.remove()
   end, {})
+  vim.api.nvim_create_user_command("Unfold", function()
+    stickers.unfold()
+  end, {})
+  vim.api.nvim_create_user_command("Fold", function()
+    stickers.fold()
+  end, {})
   return targe_file
 end
 
