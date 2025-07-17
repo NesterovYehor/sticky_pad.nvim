@@ -1,227 +1,277 @@
-local M = {}
+---@class Results The resutls opts
+---@field width integer The width of results window.
+---@field height integer The height of the results window.
+---@field win integer The results window.
+
+---@class Preview The preview opts
+---@field width integer The width of preview window.
+---@field height integer The height of the preview window.
+---@field win integer The preview window.
+
+---@class Layout The Layout opts
+---@field width integer The width of layout window.
+---@field height integer The height of the layout window.
+---@field win integer The layout window.
 
 
----@class layout
----@field win
----@field width
----@field height
-local Layout = {}
+---@class Floats
+---@field layout Layout
+---@field results Results
+---@field preview Preview
 
+---@class Dashboard
+---@field floats Floats The windows
+---@field results_buf integer The buf of results window.
+---@field preview_buf integer The buf of preview window.
+---@field callback function The function to call when an item is selected.
+
+local Dashboard = {}
+Dashboard.__index = Dashboard
+
+local dashboard_dir = ""
 local core = require("sticky_pad.core")
+local list = require("sticky_pad.list")
 
-local acive_windows = {}
-local sticker_path_map = {}
+local is_closing = false
 
-function M.create()
-  core.get_dashboard_dir()
+--- @param callback function
+--- @return table
+function Dashboard.new(callback)
+  dashboard_dir = core.get_dashboard_dir()
+  local instance = {
+    results_buf = 0,
+    preview_buf = 0,
+    callback    = callback,
+    floats      = {
+      layout = {
+        width = 0,
+        height = 0,
+        win = 0,
+      },
+      results = {
+        width = 0,
+        height = 0,
+        win = 0,
+      },
+      preview = {
+        width = 0,
+        height = 0,
+        win = 0,
+      },
+    }
+  }
+  setmetatable(instance, Dashboard)
+  return instance
 end
 
 -- Close Dashboard Helpers
-local function close_all_widows()
-  for _, win_id in pairs(acive_windows) do
-    vim.api.nvim_win_close(win_id, true)
+function Dashboard:close_all_windows()
+  if is_closing then
+    return
   end
+  is_closing = true
+
+  if vim.api.nvim_win_is_valid(self.floats.results.win) then
+    vim.api.nvim_win_close(self.floats.results.win, true)
+  end
+  if vim.api.nvim_win_is_valid(self.floats.preview.win) then
+    vim.api.nvim_win_close(self.floats.preview.win, true)
+  end
+  if vim.api.nvim_win_is_valid(self.floats.layout.win) then
+    vim.api.nvim_win_close(self.floats.layout.win, true)
+  end
+
+  is_closing = false
 end
 
-local function setup_close_keymap(buf)
+function Dashboard:setup_close_keymap()
+  local self = self
   vim.keymap.set('n', 'q', function()
-    close_all_widows()
+    self:close_all_windows()
   end, {
-    buffer = buf,
+    buffer = self.results_buf,
     silent = true,
-    desc = "Close Dashboard"
+    desc = "Close Dashboard",
   })
 end
 
-local function setup_close_autocmd(buf)
-  local augroup = vim.api.nvim_create_augroup("StickyPad", { clear = true })
-  vim.api.nvim_create_autocmd('WinClosed', {
-    group = augroup,
-    buffer = buf,
-    callback = function()
-      close_all_widows()
-    end
-  })
-end
-
-local function setup_close_funcs(buf)
-  setup_close_keymap(buf)
-  setup_close_autocmd(buf)
-end
-
-
----@param layout Layout
-local function get_inner_window_opts(layout)
+function Dashboard:set_inner_window_opts()
   local padding = 2
-  local inner_width = layout.width - padding
-  local inner_height = layout.height - padding
-  -- Results opts
-  local results_col = padding
-  local results_width = math.floor(inner_width * 0.4)
+  local inner_width = self.floats.layout.width - 2
+  local inner_height = self.floats.layout.height - 2
 
-  -- Preview opts
-  local preview_col = padding + results_width + padding
-  local preview_width = inner_width - preview_col - padding
+  self.floats.results.width = math.floor(inner_width * 0.3)
+  local preview_col = padding + self.floats.results.width + padding
+  self.floats.preview.width = inner_width - preview_col - padding
+  self.floats.preview.height = inner_height - padding
+  self.floats.results.height = inner_height - padding
 
   return {
-    results_col = results_col,
-    results_width = results_width,
-    preview_col = preview_col,
-    preview_width = preview_width,
-    padding = padding,
-    height = inner_height - padding,
-
+    results = {
+      width = self.floats.results.width,
+      height = self.floats.results.height,
+      row = 1,
+      col = padding,
+    },
+    preview = {
+      width = self.floats.preview.width,
+      height = self.floats.preview.height,
+      row = 1,
+      col = preview_col,
+    },
   }
 end
-local function set_inner_windows(layout, results_buf, preview_buf)
-  local opts = get_inner_window_opts(layout)
-  local results_win_opts = {
-    width = opts.results_width,
-    height = opts.height,
-    row = 1,
-    col = opts.results_col,
-    relative = "win",
-    win = layout.win,
-    border = "single",
-  }
 
-  local preview_win_opts = {
-    width = opts.preview_width,
-    height = opts.height,
-    row = 1,
-    col = opts.preview_col,
+function Dashboard:set_inner_windows(opts)
+  local results_win_opts = vim.tbl_deep_extend("force", opts.results, {
     relative = "win",
-    win = layout.win,
-    border = "single",
+    win = self.floats.layout.win,
+    border = "rounded",
+    style = "minimal",
+  })
+
+  local preview_win_opts = vim.tbl_deep_extend("force", opts.preview, {
+    relative = "win",
+    win = self.floats.layout.win,
+    border = "rounded",
     focusable = false,
-  }
-  local preview_win = vim.api.nvim_open_win(preview_buf, true, preview_win_opts)
-  local results_win = vim.api.nvim_open_win(results_buf, true, results_win_opts)
+    style = "minimal",
+  })
 
-  return {
-    results_win = results_win,
-    preview_win = preview_win
-  }
+  self.floats.preview.win = vim.api.nvim_open_win(self.preview_buf, false, preview_win_opts)
+  self.floats.results.win = vim.api.nvim_open_win(self.results_buf, true, results_win_opts)
+  vim.api.nvim_win_set_cursor(self.floats.results.win, { 1, 0 })
 end
-local function create_layout(opts)
-  local width = vim.api.nvim_get_option("columns")
-  local height = vim.api.nvim_get_option("lines")
 
-  local win_height = math.ceil(height * 0.65 - 4)
-  local win_width = math.ceil(width * 0.3)
+function Dashboard:create_layout(buf)
+  local width = vim.o.columns
+  local height = vim.o.lines
 
-  local row = math.ceil((height - win_height) / 2 - 1)
-  local col = math.ceil((width - win_width) / 2)
+  self.floats.layout.width = math.floor(width * 0.35)
+  self.floats.layout.height = math.floor(height * 0.6)
 
-  local window_opts = {
-    width = win_width,
-    height = win_height,
-    row = row,
-    col = col,
-    border = "single",
+  self.floats.layout.win = vim.api.nvim_open_win(buf, false, {
+    width = self.floats.layout.width,
+    height = self.floats.layout.height,
+    row = math.floor((height - self.floats.layout.height) / 2),
+    col = math.floor((width - self.floats.layout.width) / 2),
+    border = "rounded",
     style = "minimal",
     relative = "editor",
-    focusable = false
-  }
-
-  local win_id = vim.api.nvim_open_win(opts.buf, true, window_opts)
-
-  return {
-    win = win_id,
-    width = win_width,
-    height = win_height,
-  }
+    focusable = false,
+  })
 end
 
-local function get_results_buf()
-  local dashboard_dir = core.get_dashboard_dir()
+local function normalized_result_name(name, max_length)
+  if max_length and max_length > 5 and #name > max_length then
+    name = string.sub(name, 1, max_length - 5) .. "..."
+  end
+  return name
+end
+
+local function get_results_buf(max_length)
   local stickers = {}
-  local handle_buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_set_option_value('bufhidden', "wipe", { buf = handle_buf })
 
-  if not dashboard_dir then return stickers end -- Safety check
-
-  for name, type in vim.fs.dir(dashboard_dir) do
-    if type == "file" then
-      local _, slug = string.match(name, "^(%d+)-(.-)%.md$")
-      if slug then
-        table.insert(stickers, slug)
-        local full_path = dashboard_dir .. "/" .. name
-        sticker_path_map[slug] = full_path
-      end
-    end
+  for item in list.iter() do
+    local clean_title = normalized_result_name(item.title, max_length)
+    table.insert(stickers, clean_title)
   end
 
-  vim.api.nvim_buf_set_lines(handle_buf, 0, -1, false, stickers)
-  return handle_buf
+  return stickers
+end
+
+function Dashboard:refresh_results_list()
+  local stickers = get_results_buf(self.floats.results.width)
+  vim.api.nvim_buf_set_lines(self.results_buf, 0, -1, false, stickers)
+  vim.api.nvim_win_set_cursor(self.floats.results.win, { 1, 0 })
+  return true
 end
 
 -- Preview Helpers
-
 local function update_preview_buffer(buf, path)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, {})
   vim.api.nvim_buf_call(buf, function()
-    vim.cmd("0read" .. vim.fn.fnameescape(path))
+    vim.cmd("0read " .. vim.fn.fnameescape(path))
   end)
 end
 
-local function get_current_note_path(results_buf, results_win)
-  local cursor_pos = vim.api.nvim_win_get_cursor(results_win)
+function Dashboard:get_current_line_number()
+  local cursor_pos = vim.api.nvim_win_get_cursor(self.floats.results.win)
   local current_row = cursor_pos[1]
-  local lines = vim.api.nvim_buf_get_lines(results_buf, current_row - 1, current_row, false)
-  local current_line = lines[1]
-  return sticker_path_map[current_line]
+  return current_row
 end
 
-local function on_cursor_moved(results_buf, results_win, preview_buf)
-  local file_path = get_current_note_path(results_buf, results_win)
-  if file_path then
-    vim.api.nvim_buf_set_lines(preview_buf, 0, -1, false, {})
-    update_preview_buffer(preview_buf, file_path)
+function Dashboard:get_selected_path()
+  local current_line = self:get_current_line_number()
+  local file_name = list:get_by_index(current_line).file_name
+  if file_name == "" then
+    return ""
   end
+  return string.format("%s/%s", dashboard_dir, file_name)
 end
 
+function Dashboard:update_preview()
+  local file_path = self:get_selected_path()
+  update_preview_buffer(self.preview_buf, file_path)
+end
 
-
-local function setup_preview_autocmd(results_buf, preview_buf, results_win)
-  local group = vim.api.nvim_create_augroup("StickyPad", { clear = true })
+function Dashboard:setup_preview_autocmd()
+  local self = self
+  local group = vim.api.nvim_create_augroup("StickyPadPreview", { clear = true })
   vim.api.nvim_create_autocmd('CursorMoved', {
     group = group,
-    buffer = results_buf,
+    buffer = self.results_buf,
     callback = function()
-      on_cursor_moved(results_buf, results_win, preview_buf)
-    end
+      self:update_preview()
+    end,
   })
 end
 
-local function setup_select_keymap(callback, results_buf, results_win)
-  vim.keymap.set('n', '<Enter>', function()
-    local selected_path = get_current_note_path(results_buf, results_win)
+function Dashboard:delete_sticker()
+  list:remove(self:get_current_line_number())
+end
 
-    close_all_widows()
-
-    if selected_path then
-      callback(selected_path)
+function Dashboard:setup_keymaps()
+  local self = self
+  vim.keymap.set('n', 'dd', function()
+    self:delete_sticker()
+    self:refresh_results_list()
+    local lines = vim.api.nvim_buf_get_lines(self.results_buf, 0, -1, false)
+    if #lines == 0 then
+      self:close_all_windows()
     end
-  end)
+  end, { buffer = self.results_buf })
+  vim.keymap.set('n', '<Enter>', function()
+    local selected_path = self:get_current_note_path()
+    self:close_all_windows()
+    if selected_path and self.callback then
+      self.callback(self:get_current_line_number())
+    end
+  end, { buffer = self.results_buf, silent = true, desc = "Select Note" })
 end
 
-function M.show(callback)
-  local results_buf = get_results_buf()
+function Dashboard:show()
+  if list.is_empty() then
+    print("There no sticers avalible")
+    return
+  end
   local layout_buf = vim.api.nvim_create_buf(false, false)
-  local preview_buf = vim.api.nvim_create_buf(false, false)
-  vim.api.nvim_set_option_value('bufhidden', "wipe", { buf = preview_buf})
+  vim.api.nvim_set_option_value('bufhidden', "wipe", { buf = layout_buf })
+  self:create_layout(layout_buf)
 
-  local layout = create_layout({ buf = layout_buf })
-  local inner_windows = set_inner_windows(layout, results_buf, preview_buf)
+  local opts = self:set_inner_window_opts()
+  self.results_buf = vim.api.nvim_create_buf(false, false)
+  self:refresh_results_list()
+  vim.api.nvim_set_option_value('bufhidden', "wipe", { buf = self.results_buf })
+  self.preview_buf = vim.api.nvim_create_buf(false, false)
+  vim.api.nvim_set_option_value('bufhidden', "wipe", { buf = self.preview_buf })
 
-  acive_windows = { layout.win, inner_windows.results_win, inner_windows.preview_win }
+  self:set_inner_windows(opts)
 
-  setup_close_funcs(layout_buf)
-  setup_close_funcs(results_buf)
+  self:setup_close_keymap()
 
-  setup_preview_autocmd(results_buf, preview_buf, inner_windows.results_win)
-
-  setup_select_keymap(callback, results_buf, inner_windows.results_win)
+  self:setup_preview_autocmd()
+  self:setup_keymaps()
 end
 
-return M
+return Dashboard
