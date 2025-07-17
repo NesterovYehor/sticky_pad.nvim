@@ -4,17 +4,38 @@ local M = {}
 local active_sticker_win_id
 
 local core = require("sticky_pad.core")
+local list = require("sticky_pad.list")
 
-local function sanitize_slug(slug)
-  local slug_without_spaces = string.gsub(slug, " ", "-")
-  local cleaned_slug = string.gsub(slug_without_spaces, "-+", "-")
 
-  cleaned_slug = string.gsub(cleaned_slug, "^-", "")
-
-  cleaned_slug = string.gsub(cleaned_slug, "-$", "")
-
-  return cleaned_slug
+local function get_sticker_name()
+  return tostring(os.time()) .. ".md"
 end
+
+local function get_sticker_path(name)
+  return core.get_dashboard_dir() .. "/" .. name
+end
+
+
+local function get_title(lines)
+  local first_line = ""
+  for _, line in ipairs(lines) do
+    if line ~= "" then
+      first_line = line
+      break
+    end
+  end
+  return first_line
+end
+
+local function create_sticker_item(lines)
+  return {
+    file_name = get_sticker_name(),
+    title = get_title(lines),
+    is_last_used = true,
+
+  }
+end
+
 
 local function get_full_note_conf()
   local width = 35
@@ -31,36 +52,35 @@ local function get_full_note_conf()
   return win_opst
 end
 
-
 function M.new()
-  local dashboard_dir = core.get_dashboard_dir()
-  local augroup = vim.api.nvim_create_augroup("StickyPad", { clear = true })
-  if dashboard_dir then
-    local curr_time = os.time()
-    local buf = vim.api.nvim_create_buf(false, false)
-    vim.keymap.set('n', 'q', ':q<CR>', {
-      buffer = buf,
-      silent = true,
-      desc = "New sticker created"
-    })
-    vim.api.nvim_create_autocmd('BufWritePre', {
-      group = augroup,
-      buffer = buf,
-      desc = "Save sticker note content to file",
-      callback = function()
-        local lines = vim.api.nvim_buf_get_lines(buf, 0, 1, false)
-        for _, line in ipairs(lines) do
-          if #line > 0 then
-            local sticker_path = dashboard_dir ..
-                "/" .. tostring(curr_time) .. "-" .. sanitize_slug(line) .. ".md"
-            vim.api.nvim_buf_set_name(buf, sticker_path)
-          end
-        end
+  local augroup = vim.api.nvim_create_augroup("NewSticker", { clear = true })
+  local buf = vim.api.nvim_create_buf(false, false)
+  vim.api.nvim_buf_set_name(buf, "new_sticker.md")
+  local win = vim.api.nvim_open_win(buf, true, get_full_note_conf())
+
+  vim.api.nvim_create_autocmd('BufWriteCmd', {
+    group = augroup,
+    buffer = buf,
+    once = true,
+    desc = "Save sticker note content to file",
+    callback = function()
+      local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+      local sticker_item = create_sticker_item(lines)
+      if sticker_item.title == "" then
+        vim.notify("Cannot save an empty note.", "warn")
+        vim.api.nvim_win_close(win, true)
+        return
       end
-    })
-    vim.api.nvim_buf_set_name(buf, tostring(curr_time))
-    vim.api.nvim_open_win(buf, true, get_full_note_conf())
-  end
+
+      local sticker_path = get_sticker_path(sticker_item.file_name)
+      vim.fn.writefile(lines, sticker_path)
+
+      list.add(sticker_item)
+
+      vim.api.nvim_set_option_value("modified", false, { buf = buf })
+      vim.api.nvim_win_close(win, true)
+    end,
+  })
 end
 
 local function get_sticker_win_conf()
@@ -105,8 +125,8 @@ function M.fold()
   end
 end
 
-function M.show(file_path)
-  local buf = vim.fn.bufnr(file_path, true)
+function M.show(file_name)
+  local buf = vim.fn.bufnr(core.get_sticker_path(file_name), true)
   if active_sticker_win_id then
     vim.api.nvim_win_set_buf(active_sticker_win_id, buf)
   else

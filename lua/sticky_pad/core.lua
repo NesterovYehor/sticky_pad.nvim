@@ -1,36 +1,39 @@
-local M = {}
+local Core = {}
+local data_path = string.format("%s/sticker.pad", vim.fn.stdpath("data"))
 
-function M.center_in(outer, inner)
+function Core.center_in(outer, inner)
   return (outer / inner) / 2
 end
 
-local function find_root_dir()
-  local markers = { '.git', '.dashbors' }
-  return vim.fs.root(0, markers)
+function Core.sanitize_slug(slug)
+  local slug_without_spaces = string.gsub(slug, " ", "-")
+  local cleaned_slug = string.gsub(slug_without_spaces, "-+", "-")
+
+  cleaned_slug = string.gsub(cleaned_slug, "^-", "")
+
+  cleaned_slug = string.gsub(cleaned_slug, "-$", "")
+
+  return cleaned_slug
 end
 
-function M.get_root_dir()
-  return find_root_dir()
+function Core.fullpath()
+  local hash = vim.fn.sha256(vim.loop.cwd())
+  return string.format("%s/%s", data_path, hash)
 end
 
-function M.get_dashboard_dir()
-  local root_dir = find_root_dir()
+function Core.get_dashboard_dir()
+  local path = Core.fullpath()
 
-  if root_dir then
-    local dashboard_path = root_dir .. "/.dashboard"
+  local exist = vim.fn.isdirectory(path)
 
-    local exist = vim.fn.isdirectory(dashboard_path)
-
-    if exist == 1 then
-      return dashboard_path
-    else
-      vim.fn.mkdir(dashboard_path, 'p')
-      return dashboard_path
-    end
-  else
-    print("No root directory found")
-    return
+  if exist == 0 then
+    vim.fn.mkdir(path, 'p')
   end
+  return path
 end
 
-return M
+function Core.get_sticker_path(file_name)
+  return string.format("%s/%s", Core.get_dashboard_dir(), file_name)
+end
+
+return Core
