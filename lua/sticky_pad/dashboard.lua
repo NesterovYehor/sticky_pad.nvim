@@ -24,6 +24,7 @@
 ---@field results_buf integer The buf of results window.
 ---@field preview_buf integer The buf of preview window.
 ---@field callback function The function to call when an item is selected.
+---@field results_list string[] The list of all file names that we got from list.
 
 local Dashboard = {}
 Dashboard.__index = Dashboard
@@ -39,10 +40,11 @@ local is_closing = false
 function Dashboard.new(callback)
   dashboard_dir = core.get_dashboard_dir()
   local instance = {
-    results_buf = 0,
-    preview_buf = 0,
-    callback    = callback,
-    floats      = {
+    results_buf  = 0,
+    preview_buf  = 0,
+    callback     = callback,
+    results_list = {},
+    floats       = {
       layout = {
         width = 0,
         height = 0,
@@ -171,19 +173,22 @@ end
 
 local function get_results_buf(max_length)
   local stickers = {}
+  local file_name_list = {}
 
   for item in list.iter() do
     local clean_title = normalized_result_name(item.title, max_length)
     table.insert(stickers, clean_title)
+    table.insert(file_name_list, item.file_name)
   end
 
-  return stickers
+  return stickers, file_name_list
 end
 
 function Dashboard:refresh_results_list()
-  local stickers = get_results_buf(self.floats.results.width)
+  local stickers, file_names_list = get_results_buf(self.floats.results.width)
   vim.api.nvim_buf_set_lines(self.results_buf, 0, -1, false, stickers)
   vim.api.nvim_win_set_cursor(self.floats.results.win, { 1, 0 })
+  self.results_list = file_names_list
   return true
 end
 
@@ -195,23 +200,16 @@ local function update_preview_buffer(buf, path)
   end)
 end
 
-function Dashboard:get_current_line_number()
-  local cursor_pos = vim.api.nvim_win_get_cursor(self.floats.results.win)
-  local current_row = cursor_pos[1]
-  return current_row
-end
 
-function Dashboard:get_selected_path()
-  local current_line = self:get_current_line_number()
-  local file_name = list:get_by_index(current_line).file_name
-  if file_name == "" then
-    return ""
-  end
-  return string.format("%s/%s", dashboard_dir, file_name)
+function Dashboard:get_selected_file_name()
+  local win_id = self.floats.results.win
+  print(win_id)
+  local current_line = core.get_current_line_number(win_id)
+  return self.results_list[current_line]
 end
 
 function Dashboard:update_preview()
-  local file_path = self:get_selected_path()
+  local file_path = dashboard_dir .. "/" .. self:get_selected_file_name()
   update_preview_buffer(self.preview_buf, file_path)
 end
 
@@ -227,10 +225,6 @@ function Dashboard:setup_preview_autocmd()
   })
 end
 
-function Dashboard:delete_sticker()
-  list:remove(self:get_current_line_number())
-end
-
 function Dashboard:setup_keymaps()
   local self = self
   vim.keymap.set('n', 'dd', function()
@@ -242,10 +236,11 @@ function Dashboard:setup_keymaps()
     end
   end, { buffer = self.results_buf })
   vim.keymap.set('n', '<Enter>', function()
-    local selected_path = self:get_current_note_path()
+    local file_name = self:get_selected_file_name()
     self:close_all_windows()
-    if selected_path and self.callback then
-      self.callback(self:get_current_line_number())
+
+    if self.callback then
+      self.callback(file_name)
     end
   end, { buffer = self.results_buf, silent = true, desc = "Select Note" })
 end

@@ -15,11 +15,17 @@ end
 local function setup_user_commands(opts)
   local targe_file = opts.targe_file or "todo.md"
   vim.api.nvim_create_user_command("NS", function()
-    stickers.new()
+    stickers.create()
   end, {})
   vim.api.nvim_create_user_command("SD", function()
     open_dashboard()
   end, {})
+  vim.api.nvim_create_user_command("MD", function(opts)
+    stickers.move_topline(opts.count)
+  end, {count = 1})
+  vim.api.nvim_create_user_command("MU", function(opts)
+    stickers.move_topline(-1 * opts.count)
+  end, {count = 1})
   vim.api.nvim_create_user_command("RS", function()
     stickers.remove()
   end, {})
@@ -45,7 +51,9 @@ end
 function M.setup(opts)
   setup_user_commands(opts)
   setup_autocmd()
-  stickers.show(list.get_last_used().file_name)
+  if list.get_last_used() then
+    stickers.show(list.get_last_used().file_name)
+  end
 end
 
 return M
