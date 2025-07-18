@@ -36,4 +36,10 @@ function Core.get_sticker_path(file_name)
   return string.format("%s/%s", Core.get_dashboard_dir(), file_name)
 end
 
+function Core.get_current_line_number(win_id)
+  local cursor_pos = vim.api.nvim_win_get_cursor(win_id)
+  local current_row = cursor_pos[1]
+  return current_row
+end
+
 return Core

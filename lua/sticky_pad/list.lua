@@ -1,11 +1,12 @@
 --- @class ListItem
 --- @field file_name string Name of file with sticker's content
+--- @field top_line integer Line number form which will start content of sticker
 --- @field title string Title of sticker that used as title in dashboard and is a first line of sticker
 --- @field is_last_used boolean Used to set last used sticker to screen while sutuping pluguin
 
 --- @class List
---- @field items ListItem[]
---- @field last_used ListItem 
+--- @field items table<string, ListItem> A map of filename to ListItem.
+--- @field last_used ListItem | nil
 
 
 local core = require("sticky_pad.core")
@@ -40,59 +41,82 @@ function M.new()
       file_name = key,
       title = values["title"],
       is_last_used = values["is_last_used"],
+      top_line = values["top_line"],
     }
     if item.is_last_used then
       state.last_used = item
     end
-    table.insert(state.items, item)
+    state.items[key] = item
   end
 end
 
+--- FIX: This iterator now correctly uses `pairs` to work with the hash map.
+-- It returns an iterator that yields only the item objects, not the keys.
 function M.iter()
-  local i = 0
-  local items = state.items
-
+  local key, value = next(state.items)
   return function()
-    i = i + 1
-    return items[i]
+    if key then
+      local current_value = value
+      key, value = next(state.items, key)
+      return current_value
+    end
   end
 end
+
 
 function M.get_all()
   return state.items
 end
 
-function M.get_by_index(i)
-  local itme = state.items[i]
-  return itme
+---@param key string
+---@return ListItem
+function M.get_by_file_name(key)
+  return state.items[key]
 end
 
 function M.add(item)
-  table.insert(state.items, item)
+  state.items[item.file_name] = item
 end
 
 function M.get_last_used()
   return state.last_used
 end
 
+---@param file_name string The key of the item to update.
+---@param new_data table A table of new key-value pairs to apply.
+function M.update_item(file_name, new_data)
+  local item = state.items[file_name]
+  if not item then
+    return
+  end
+
+  for key, value in pairs(new_data) do
+    item[key] = value
+  end
+end
+
+--- FIX: This function now correctly uses `pairs` to iterate over the hash map.
 function M.sync()
   local data = {}
-  for _, item in ipairs(state.items) do
-    data[item.file_name] = {
+  for file_name, item in pairs(state.items) do
+    data[file_name] = {
       title = item.title,
       is_last_used = item.is_last_used,
+      top_line = item.top_line,
     }
   end
   local json_string = vim.json.encode(data)
   vim.fn.writefile({ json_string }, metadata_file_path)
 end
 
-function M.remove(i)
-  table.remove(state.items, i)
+---@param key string
+function M.remove(key)
+  state.items[key] = nil
 end
 
 function M.is_empty()
-  return #state.items == 0
+  return next(state.items) == nil
 end
 
 return M
+
