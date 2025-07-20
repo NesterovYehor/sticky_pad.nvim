@@ -25,6 +25,7 @@
 ---@field preview_buf integer The buf of preview window.
 ---@field callback function The function to call when an item is selected.
 ---@field results_list string[] The list of all file names that we got from list.
+---@field layout_buf integer
 
 local Dashboard = {}
 Dashboard.__index = Dashboard
@@ -140,19 +141,26 @@ function Dashboard:set_inner_windows(opts)
     style = "minimal",
   })
 
-  self.floats.preview.win = vim.api.nvim_open_win(self.preview_buf, false, preview_win_opts)
-  self.floats.results.win = vim.api.nvim_open_win(self.results_buf, true, results_win_opts)
+  if self.floats.preview.win == 0 then
+    self.floats.preview.win = vim.api.nvim_open_win(self.preview_buf, false, preview_win_opts)
+  else
+    vim.api.nvim_win_set_config(self.floats.preview.win, preview_win_opts)
+  end
+  if self.floats.results.win == 0 then
+    self.floats.results.win = vim.api.nvim_open_win(self.results_buf, true, results_win_opts)
+  else
+    vim.api.nvim_win_set_config(self.floats.results.win, results_win_opts)
+  end
   vim.api.nvim_win_set_cursor(self.floats.results.win, { 1, 0 })
 end
 
-function Dashboard:create_layout(buf)
+function Dashboard:create_layout()
   local width = vim.o.columns
   local height = vim.o.lines
 
   self.floats.layout.width = math.floor(width * 0.35)
   self.floats.layout.height = math.floor(height * 0.6)
-
-  self.floats.layout.win = vim.api.nvim_open_win(buf, false, {
+  local win_opts = {
     width = self.floats.layout.width,
     height = self.floats.layout.height,
     row = math.floor((height - self.floats.layout.height) / 2),
@@ -161,7 +169,13 @@ function Dashboard:create_layout(buf)
     style = "minimal",
     relative = "editor",
     focusable = false,
-  })
+  }
+
+  if self.floats.layout.win == 0 then
+    self.floats.layout.win = vim.api.nvim_open_win(self.layout_buf, false, win_opts)
+  else
+     vim.api.nvim_win_set_config(self.layout_buf, false, win_opts)
+  end
 end
 
 local function normalized_result_name(name, max_length)
@@ -213,15 +227,24 @@ function Dashboard:update_preview()
   update_preview_buffer(self.preview_buf, file_path)
 end
 
-function Dashboard:setup_preview_autocmd()
+function Dashboard:setup_autocmd()
   local self = self
-  local group = vim.api.nvim_create_augroup("StickyPadPreview", { clear = true })
+  local group = vim.api.nvim_create_augroup("Update-windows", { clear = true })
   vim.api.nvim_create_autocmd('CursorMoved', {
     group = group,
     buffer = self.results_buf,
     callback = function()
       self:update_preview()
     end,
+  })
+  vim.api.nvim_create_autocmd('VimResized', {
+    group = group,
+    buffer = self.results_buf,
+    callback = function()
+      self:create_layout()
+      local opts = self:set_inner_window_opts()
+      self:set_inner_windows(opts)
+    end
   })
 end
 
@@ -250,9 +273,9 @@ function Dashboard:show()
     print("There no sticers avalible")
     return
   end
-  local layout_buf = vim.api.nvim_create_buf(false, false)
-  vim.api.nvim_set_option_value('bufhidden', "wipe", { buf = layout_buf })
-  self:create_layout(layout_buf)
+  self.layout_buf = vim.api.nvim_create_buf(false, false)
+  vim.api.nvim_set_option_value('bufhidden', "wipe", { buf = self.layout_buf })
+  self:create_layout()
 
   local opts = self:set_inner_window_opts()
   self.results_buf = vim.api.nvim_create_buf(false, false)
@@ -265,7 +288,7 @@ function Dashboard:show()
 
   self:setup_close_keymap()
 
-  self:setup_preview_autocmd()
+  self:setup_autocmd()
   self:setup_keymaps()
 end
 
