@@ -2,6 +2,7 @@ local M = {}
 
 local core = require("sticky_pad.core")
 local list = require("sticky_pad.list")
+local config = require("sticky_pad.config").get()
 
 -- This is the private, internal state for the one active sticker.
 local active_sticker = {
@@ -13,31 +14,32 @@ local active_sticker = {
 
 -- Helper function to get the configuration for the "full note" editing window.
 local function get_full_note_conf()
-  local width = 35
+  local width = config.width
   local height = math.floor(vim.o.lines * 0.8)
   return {
     relative = "editor",
     width = width,
     height = height,
-    col = vim.o.columns - width - 5,
-    row = 5,
-    border = "single",
+    col = config.col,
+    row = config.row,
+    border = "rounded",
     focusable = true,
+    title = "sticky.pad"
   }
 end
 
 -- Helper function to get the configuration for the small "sticker" view.
 local function get_sticker_win_conf()
-  local col = vim.o.columns - 40
   return {
-    width = 35,
-    height = 15,
-    row = 1,
-    col = col,
+    width = config.sticker_width,
+    height = config.sticker_height,
+    row = config.row,
+    col = config.col,
     relative = "editor",
-    border = "single",
+    border = "rounded",
     style = "minimal",
     focusable = false,
+    title = "sticky.pad"
   }
 end
 

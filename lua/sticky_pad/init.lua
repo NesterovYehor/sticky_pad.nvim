@@ -2,6 +2,7 @@ local M = {}
 local dashboard = require("sticky_pad.dashboard")
 local stickers = require("sticky_pad.sticker")
 local list = require("sticky_pad.list")
+local config = require("sticky_pad.config")
 list.new()
 
 local function open_dashboard()
@@ -12,8 +13,7 @@ local function open_dashboard()
   my_dashboard:show()
 end
 
-local function setup_user_commands(opts)
-  local targe_file = opts.targe_file or "todo.md"
+local function setup_user_commands()
   vim.api.nvim_create_user_command("NS", function()
     stickers.create()
   end, {})
@@ -35,7 +35,6 @@ local function setup_user_commands(opts)
   vim.api.nvim_create_user_command("Fold", function()
     stickers.fold()
   end, {})
-  return targe_file
 end
 
 
@@ -49,7 +48,8 @@ local function setup_autocmd()
 end
 
 function M.setup(opts)
-  setup_user_commands(opts)
+  config.set(opts)
+  setup_user_commands()
   setup_autocmd()
   if list.get_last_used() then
     stickers.show(list.get_last_used().file_name)
