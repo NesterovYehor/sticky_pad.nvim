@@ -174,7 +174,7 @@ function Dashboard:create_layout()
   if self.floats.layout.win == 0 then
     self.floats.layout.win = vim.api.nvim_open_win(self.layout_buf, false, win_opts)
   else
-     vim.api.nvim_win_set_config(self.layout_buf, false, win_opts)
+    vim.api.nvim_win_set_config(self.layout_buf, false, win_opts)
   end
 end
 
@@ -217,7 +217,6 @@ end
 
 function Dashboard:get_selected_file_name()
   local win_id = self.floats.results.win
-  print(win_id)
   local current_line = core.get_current_line_number(win_id)
   return self.results_list[current_line]
 end
@@ -248,15 +247,24 @@ function Dashboard:setup_autocmd()
   })
 end
 
+function Dashboard:delete_sticker()
+  local current_line = core.get_current_line_number(self.floats.results.win)
+  local file_name = self.results_list[current_line]
+  os.remove(dashboard_dir .. "/" .. file_name)
+  table.remove(self.results_list, current_line)
+  list.remove(file_name)
+end
+
 function Dashboard:setup_keymaps()
   local self = self
   vim.keymap.set('n', 'dd', function()
     self:delete_sticker()
-    self:refresh_results_list()
-    local lines = vim.api.nvim_buf_get_lines(self.results_buf, 0, -1, false)
-    if #lines == 0 then
+    if #self.results_list == 0 then
       self:close_all_windows()
+      return
     end
+    self:refresh_results_list()
+    self:update_preview()
   end, { buffer = self.results_buf })
   vim.keymap.set('n', '<Enter>', function()
     local file_name = self:get_selected_file_name()

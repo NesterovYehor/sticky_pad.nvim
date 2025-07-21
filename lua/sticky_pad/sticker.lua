@@ -14,7 +14,7 @@ local active_sticker = {
 
 -- Helper function to get the configuration for the "full note" editing window.
 local function get_full_note_conf()
-  local width = config.width
+  local width = config.sticker_width
   local height = math.floor(vim.o.lines * 0.8)
   return {
     relative = "editor",
@@ -24,7 +24,7 @@ local function get_full_note_conf()
     row = config.row,
     border = "rounded",
     focusable = true,
-    title = "sticky.pad"
+    title = "sticky"
   }
 end
 
@@ -82,6 +82,7 @@ function M.create()
   local augroup = vim.api.nvim_create_augroup("NewSticker", { clear = true })
   local buf = vim.api.nvim_create_buf(false, false)
   local win = vim.api.nvim_open_win(buf, true, get_full_note_conf())
+  vim.api.nvim_set_option_value('wrap', true, { win = win })
 
   -- Give the buffer a temporary name to allow :w to work.
   vim.api.nvim_buf_set_name(buf, "new_sticker.md")
@@ -109,6 +110,7 @@ function M.create()
       -- Tell Neovim the save was successful.
       vim.api.nvim_set_option_value("modified", false, { buf = buf })
       vim.api.nvim_win_close(win, true)
+      vim.api.nvim_buf_delete(buf, {force = true})
     end,
   })
 end
@@ -116,7 +118,7 @@ end
 -- This function displays a sticker on the screen.
 function M.show(file_name)
   if list.get_last_used() then
-    list.update_item(list.get_last_used().file_name, { is_last_used = true })
+    list.update_item(list.get_last_used().file_name, { is_last_used = false})
   end
   local list_item = list.get_by_file_name(file_name)
   active_sticker.buf_id = vim.fn.bufnr(core.get_sticker_path(file_name), true)
@@ -125,18 +127,15 @@ function M.show(file_name)
   active_sticker.file_name = file_name
   active_sticker.top_line = list_item.top_line or 1
 
-  -- If no sticker is currently active, create a new window.
   if active_sticker.win_id == 0 then
     active_sticker.win_id = vim.api.nvim_open_win(active_sticker.buf_id, false, get_sticker_win_conf())
-    vim.api.nvim_set_option_value('wrap', true, { win = active_sticker.win_id })
     vim.api.nvim_set_option_value('linebreak', true, { win = active_sticker.win_id })
+    vim.api.nvim_set_option_value('wrap', true, { win = active_sticker.win_id })
   else
     vim.api.nvim_win_set_buf(active_sticker.win_id, active_sticker.buf_id)
   end
-  list.update_item(active_sticker.file_name, { is_last_used = true })
-
-  -- Now, call the central refresh function to update the view.
   refresh_sticker()
+  list.update_item(active_sticker.file_name, { is_last_used = true })
 end
 
 -- This function closes the active sticker.
@@ -155,6 +154,17 @@ function M.unfold()
   end
 end
 
+local function normalize_scroll()
+  local line_count = core.get_line_number(active_sticker.buf_id, config.sticker_width)
+  local current_line = core.get_current_line_number(active_sticker.win_id)
+  print(line_count, current_line)
+  if line_count - current_line > config.sticker_height then
+    active_sticker.top_line = current_line
+  else
+    active_sticker.top_line = line_count - config.sticker_height
+  end
+end
+
 -- This function "folds" the editing view back into a sticker.
 function M.fold()
   if vim.api.nvim_win_is_valid(active_sticker.win_id) then
@@ -163,8 +173,7 @@ function M.fold()
       vim.notify("Save your changes first with :w", vim.log.levels.WARN)
       return
     end
-
-    active_sticker.top_line = core.get_current_line_number(active_sticker.win_id)
+    normalize_scroll()
     list.update_item(active_sticker.file_name, { top_line = active_sticker.top_line })
 
     vim.api.nvim_win_set_config(active_sticker.win_id, get_sticker_win_conf())
@@ -184,4 +193,5 @@ function M.move_topline(num_of_steps)
   list.update_item(active_sticker.file_name, { top_line = active_sticker.top_line })
   refresh_sticker()
 end
+
 return M
