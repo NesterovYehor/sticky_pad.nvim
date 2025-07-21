@@ -37,9 +37,22 @@ function Core.get_sticker_path(file_name)
 end
 
 function Core.get_current_line_number(win_id)
-  local cursor_pos = vim.api.nvim_win_get_cursor(win_id)
-  local current_row = cursor_pos[1]
-  return current_row
+  -- This runs vim.fn.winline() inside the specified window
+  -- and returns its visual line number.
+  return vim.api.nvim_win_call(win_id, function()
+    return vim.fn.winline()
+  end)
+end
+
+---@param buf_id integer
+---@param win_width integer
+function Core.get_line_number(buf_id, win_width)
+  local lines = vim.api.nvim_buf_get_lines(buf_id, 0, -1, false)
+  local chars_num = 0
+  for _, line in pairs(lines) do
+    chars_num = chars_num + #line
+  end
+  return #lines + math.floor(chars_num / win_width)
 end
 
 return Core

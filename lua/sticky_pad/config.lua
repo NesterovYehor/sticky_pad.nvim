@@ -38,7 +38,7 @@ function Config.set(opts)
     config[k] = v
     ::continue::
   end
-  local cords = cases[config.position] or cases.default()
+  local cords = (cases[config.position] or cases.default)()
   config.row = cords[1]
   config.col = cords[2]
 end
