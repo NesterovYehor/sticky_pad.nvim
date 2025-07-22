@@ -8,9 +8,6 @@
 --- @field items table<string, ListItem> A map of filename to ListItem.
 --- @field last_used ListItem | nil
 
-
-local core = require("sticky_pad.core")
-
 local M = {}
 
 local state = {
@@ -18,9 +15,8 @@ local state = {
   last_used = nil,
 }
 
-local metadata_file_path = string.format("%s/metadata.json", core.get_dashboard_dir())
 
-function M.new()
+function M.new(metadata_file_path)
   state.items = {}
   state.last_used = nil
 
@@ -64,10 +60,6 @@ function M.iter()
 end
 
 
-function M.get_all()
-  return state.items
-end
-
 ---@param key string
 ---@return ListItem
 function M.get_by_file_name(key)
@@ -76,6 +68,12 @@ end
 
 function M.add(item)
   state.items[item.file_name] = item
+  if item.is_last_used then
+    if state.last_used then
+      state.items[state.last_used.file_name].is_last_used = false
+    end
+    state.last_used = item
+  end
 end
 
 function M.get_last_used()
@@ -92,11 +90,13 @@ function M.update_item(file_name, new_data)
 
   for key, value in pairs(new_data) do
     item[key] = value
+    if key == "is_last_used" and value then
+      state.last_used = item
+    end
   end
 end
 
---- FIX: This function now correctly uses `pairs` to iterate over the hash map.
-function M.sync()
+function M.sync(metadata_file_path)
   local data = {}
   for file_name, item in pairs(state.items) do
     data[file_name] = {
@@ -118,5 +118,8 @@ function M.is_empty()
   return next(state.items) == nil
 end
 
-return M
+function M.get_items()
+  return state.items
+end
 
+return M
