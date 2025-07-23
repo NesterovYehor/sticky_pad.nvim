@@ -1,17 +1,17 @@
 local M = {}
-local dashboard = require("sticky_pad.dashboard")
+local pad = require("sticky_pad.pad")
 local stickers = require("sticky_pad.sticker")
 local list = require("sticky_pad.list")
 local config = require("sticky_pad.config")
 local core = require("sticky_pad.core")
-list.new(core.get_dashboard_dir() .. "/metadata.json")
+list.new(core.get_pad_dir() .. "/metadata.json")
 
-local function open_dashboard()
-  local my_dashboard = dashboard.new(function(file_name)
+local function open_pad()
+  local my_pad = pad.new(function(file_name)
     stickers.show(file_name)
-  end)
+  end, core.get_pad_dir())
 
-  my_dashboard:show()
+  my_pad:show()
 end
 
 local function setup_user_commands()
@@ -19,7 +19,7 @@ local function setup_user_commands()
     stickers.create()
   end, {})
   vim.api.nvim_create_user_command("SD", function()
-    open_dashboard()
+    open_pad()
   end, {})
   vim.api.nvim_create_user_command("MD", function(opts)
     stickers.move_topline(opts.count)
@@ -45,7 +45,7 @@ local function setup_autocmd()
     group = group,
     desc = "Save sticker list before quitting",
     callback = function()
-      list.sync(core.get_dashboard_dir() .. "/metadata.json")
+      list.sync(core.get_pad_dir().. "/metadata.json")
     end
   })
 end
