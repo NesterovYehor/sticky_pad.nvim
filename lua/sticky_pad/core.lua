@@ -21,7 +21,7 @@ function Core.fullpath()
   return string.format("%s/%s", data_path, hash)
 end
 
-function Core.get_dashboard_dir()
+function Core.get_pad_dir()
   local path = Core.fullpath()
 
   local exist = vim.fn.isdirectory(path)
@@ -29,11 +29,11 @@ function Core.get_dashboard_dir()
   if exist == 0 then
     vim.fn.mkdir(path, 'p')
   end
-  return path
+  return path .. "/"
 end
 
 function Core.get_sticker_path(file_name)
-  return string.format("%s/%s", Core.get_dashboard_dir(), file_name)
+  return string.format("%s/%s", Core.get_pad_dir(), file_name)
 end
 
 function Core.get_current_line_number(win_id)

@@ -19,7 +19,7 @@
 ---@field results Results
 ---@field preview Preview
 
----@class Dashboard
+---@class Pad
 ---@field floats Floats The windows
 ---@field results_buf integer The buf of results window.
 ---@field preview_buf integer The buf of preview window.
@@ -27,10 +27,10 @@
 ---@field results_list string[] The list of all file names that we got from list.
 ---@field layout_buf integer
 
-local Dashboard = {}
-Dashboard.__index = Dashboard
+local Pad = {}
+Pad.__index = Pad
 
-local dashboard_dir = ""
+local pad_dir = ""
 local core = require("sticky_pad.core")
 local list = require("sticky_pad.list")
 
@@ -38,8 +38,8 @@ local is_closing = false
 
 --- @param callback function
 --- @return table
-function Dashboard.new(callback)
-  dashboard_dir = core.get_dashboard_dir()
+function Pad.new(callback, dir)
+  pad_dir = dir
   local instance = {
     results_buf  = 0,
     preview_buf  = 0,
@@ -63,12 +63,12 @@ function Dashboard.new(callback)
       },
     }
   }
-  setmetatable(instance, Dashboard)
+  setmetatable(instance, Pad)
   return instance
 end
 
--- Close Dashboard Helpers
-function Dashboard:close_all_windows()
+-- Close Pad Helpers
+function Pad:close_all_windows()
   if is_closing then
     return
   end
@@ -87,18 +87,18 @@ function Dashboard:close_all_windows()
   is_closing = false
 end
 
-function Dashboard:setup_close_keymap()
+function Pad:setup_close_keymap()
   local self = self
   vim.keymap.set('n', 'q', function()
     self:close_all_windows()
   end, {
     buffer = self.results_buf,
     silent = true,
-    desc = "Close Dashboard",
+    desc = "Close Pad",
   })
 end
 
-function Dashboard:set_inner_window_opts()
+function Pad:set_inner_window_opts()
   local padding = 2
   local inner_width = self.floats.layout.width - 2
   local inner_height = self.floats.layout.height - 2
@@ -125,7 +125,7 @@ function Dashboard:set_inner_window_opts()
   }
 end
 
-function Dashboard:set_inner_windows(opts)
+function Pad:set_inner_windows(opts)
   local results_win_opts = vim.tbl_deep_extend("force", opts.results, {
     relative = "win",
     win = self.floats.layout.win,
@@ -154,7 +154,7 @@ function Dashboard:set_inner_windows(opts)
   vim.api.nvim_win_set_cursor(self.floats.results.win, { 1, 0 })
 end
 
-function Dashboard:create_layout()
+function Pad:create_layout()
   local width = vim.o.columns
   local height = vim.o.lines
 
@@ -179,8 +179,8 @@ function Dashboard:create_layout()
 end
 
 local function normalized_result_name(name, max_length)
-  if max_length and max_length > 5 and #name > max_length then
-    name = string.sub(name, 1, max_length - 5) .. "..."
+  if   max_length > 0 and #name > max_length then
+    name = string.sub(name, 1, max_length - 4) .. "..."
   end
   return name
 end
@@ -198,7 +198,7 @@ local function get_results_buf(max_length)
   return stickers, file_name_list
 end
 
-function Dashboard:refresh_results_list()
+function Pad:refresh_results_list()
   local stickers, file_names_list = get_results_buf(self.floats.results.width)
   vim.api.nvim_buf_set_lines(self.results_buf, 0, -1, false, stickers)
   vim.api.nvim_win_set_cursor(self.floats.results.win, { 1, 0 })
@@ -215,18 +215,18 @@ local function update_preview_buffer(buf, path)
 end
 
 
-function Dashboard:get_selected_file_name()
+function Pad:get_selected_file_name()
   local win_id = self.floats.results.win
   local current_line = core.get_current_line_number(win_id)
   return self.results_list[current_line]
 end
 
-function Dashboard:update_preview()
-  local file_path = dashboard_dir .. "/" .. self:get_selected_file_name()
+function Pad:update_preview()
+  local file_path = pad_dir ..  self:get_selected_file_name()
   update_preview_buffer(self.preview_buf, file_path)
 end
 
-function Dashboard:setup_autocmd()
+function Pad:setup_autocmd()
   local self = self
   local group = vim.api.nvim_create_augroup("Update-windows", { clear = true })
   vim.api.nvim_create_autocmd('CursorMoved', {
@@ -247,18 +247,18 @@ function Dashboard:setup_autocmd()
   })
 end
 
-function Dashboard:delete_sticker()
+function Pad:delete_sticker()
   local current_line = core.get_current_line_number(self.floats.results.win)
   local file_name = self.results_list[current_line]
-  os.remove(dashboard_dir .. "/" .. file_name)
+  os.remove(pad_dir ..  file_name)
   table.remove(self.results_list, current_line)
   list.remove(file_name)
 end
 
-function Dashboard:setup_keymaps()
-  local self = self
+function Pad:setup_keymaps()
   vim.keymap.set('n', 'dd', function()
     self:delete_sticker()
+    self.floats.results.width = 3
     if #self.results_list == 0 then
       self:close_all_windows()
       return
@@ -276,7 +276,7 @@ function Dashboard:setup_keymaps()
   end, { buffer = self.results_buf, silent = true, desc = "Select Note" })
 end
 
-function Dashboard:show()
+function Pad:show()
   if list.is_empty() then
     print("There no sticers avalible")
     return
@@ -298,6 +298,7 @@ function Dashboard:show()
 
   self:setup_autocmd()
   self:setup_keymaps()
+  self:update_preview()
 end
 
-return Dashboard
+return Pad
