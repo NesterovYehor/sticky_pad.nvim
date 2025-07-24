@@ -12,7 +12,8 @@ local active_sticker = {
   file_name = "",
 }
 
--- Helper function to get the configuration for the "full note" editing window.
+
+
 local function get_full_note_conf()
   local width = config.sticker_width
   local height = math.floor(vim.o.lines * 0.8)
@@ -28,7 +29,6 @@ local function get_full_note_conf()
   }
 end
 
--- Helper function to get the configuration for the small "sticker" view.
 local function get_sticker_win_conf()
   return {
     width = config.sticker_width,
@@ -53,7 +53,7 @@ local function refresh_sticker()
     vim.cmd("normal! zt")
   end)
 end
--- This is your restored create function, with necessary fixes.
+
 local function get_title(lines)
   local first_line = ""
   for _, line in ipairs(lines) do
@@ -84,7 +84,6 @@ function M.create()
   local win = vim.api.nvim_open_win(buf, true, get_full_note_conf())
   vim.api.nvim_set_option_value('wrap', true, { win = win })
 
-  -- Give the buffer a temporary name to allow :w to work.
   vim.api.nvim_buf_set_name(buf, "new_sticker.md")
 
   vim.api.nvim_create_autocmd("BufWriteCmd", {
@@ -107,18 +106,16 @@ function M.create()
 
       list.add(sticker_item)
 
-      -- Tell Neovim the save was successful.
       vim.api.nvim_set_option_value("modified", false, { buf = buf })
       vim.api.nvim_win_close(win, true)
-      vim.api.nvim_buf_delete(buf, {force = true})
+      vim.api.nvim_buf_delete(buf, { force = true })
     end,
   })
 end
 
--- This function displays a sticker on the screen.
 function M.show(file_name)
   if list.get_last_used() then
-    list.update_item(list.get_last_used().file_name, { is_last_used = false})
+    list.update_item(list.get_last_used().file_name, { is_last_used = false })
   end
   local list_item = list.get_by_file_name(file_name)
   active_sticker.buf_id = vim.fn.bufnr(core.get_sticker_path(file_name), true)
@@ -138,7 +135,6 @@ function M.show(file_name)
   list.update_item(active_sticker.file_name, { is_last_used = true })
 end
 
--- This function closes the active sticker.
 function M.remove()
   if vim.api.nvim_win_is_valid(active_sticker.win_id) then
     vim.api.nvim_win_close(active_sticker.win_id, true)
@@ -146,7 +142,6 @@ function M.remove()
   end
 end
 
--- This function "unfolds" the sticker into the editing view.
 function M.unfold()
   if vim.api.nvim_win_is_valid(active_sticker.win_id) then
     vim.api.nvim_win_set_config(active_sticker.win_id, get_full_note_conf())
@@ -154,18 +149,33 @@ function M.unfold()
   end
 end
 
+function M.get_new_line()
+  local line_count = core.get_line_number(active_sticker.buf_id, config.sticker_width)
+  if line_count > config.sticker_height then
+    local current_line = core.get_current_line_number(active_sticker.win_id)
+    if line_count - current_line > config.sticker_height then
+      return current_line
+    else
+      return line_count - config.sticker_height
+    end
+  end
+  return 1
+end
+
 local function normalize_scroll()
   local line_count = core.get_line_number(active_sticker.buf_id, config.sticker_width)
-  local current_line = core.get_current_line_number(active_sticker.win_id)
-  print(line_count, current_line)
-  if line_count - current_line > config.sticker_height then
-    active_sticker.top_line = current_line
+  if line_count > config.sticker_height then
+    local current_line = core.get_current_line_number(active_sticker.win_id)
+    if line_count - current_line > config.sticker_height then
+      active_sticker.top_line = current_line
+    else
+      active_sticker.top_line = line_count - config.sticker_height
+    end
   else
-    active_sticker.top_line = line_count - config.sticker_height
+    active_sticker.top_line = 1
   end
 end
 
--- This function "folds" the editing view back into a sticker.
 function M.fold()
   if vim.api.nvim_win_is_valid(active_sticker.win_id) then
     local buf = vim.api.nvim_win_get_buf(active_sticker.win_id)
@@ -177,7 +187,6 @@ function M.fold()
     list.update_item(active_sticker.file_name, { top_line = active_sticker.top_line })
 
     vim.api.nvim_win_set_config(active_sticker.win_id, get_sticker_win_conf())
-    -- Restore the scroll position.
     refresh_sticker()
   end
 end
@@ -192,6 +201,16 @@ function M.move_topline(num_of_steps)
 
   list.update_item(active_sticker.file_name, { top_line = active_sticker.top_line })
   refresh_sticker()
+end
+
+-- Only for tests
+function M.reset()
+  active_sticker = {
+    win_id = 0,
+    buf_id = 0,
+    top_line = 1,
+    file_name = "",
+  }
 end
 
 return M

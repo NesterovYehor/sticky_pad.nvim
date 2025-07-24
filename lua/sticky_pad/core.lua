@@ -37,8 +37,6 @@ function Core.get_sticker_path(file_name)
 end
 
 function Core.get_current_line_number(win_id)
-  -- This runs vim.fn.winline() inside the specified window
-  -- and returns its visual line number.
   return vim.api.nvim_win_call(win_id, function()
     return vim.fn.winline()
   end)
