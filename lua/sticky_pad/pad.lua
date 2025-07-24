@@ -179,7 +179,7 @@ function Pad:create_layout()
 end
 
 local function normalized_result_name(name, max_length)
-  if   max_length > 0 and #name > max_length then
+  if max_length > 0 and #name > max_length then
     name = string.sub(name, 1, max_length - 4) .. "..."
   end
   return name
@@ -222,7 +222,7 @@ function Pad:get_selected_file_name()
 end
 
 function Pad:update_preview()
-  local file_path = pad_dir ..  self:get_selected_file_name()
+  local file_path = pad_dir .. self:get_selected_file_name()
   update_preview_buffer(self.preview_buf, file_path)
 end
 
@@ -250,7 +250,7 @@ end
 function Pad:delete_sticker()
   local current_line = core.get_current_line_number(self.floats.results.win)
   local file_name = self.results_list[current_line]
-  os.remove(pad_dir ..  file_name)
+  os.remove(pad_dir .. file_name)
   table.remove(self.results_list, current_line)
   list.remove(file_name)
 end

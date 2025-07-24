@@ -33,12 +33,13 @@ end
 
 describe("pad.lua", function()
   before_each(function()
-    delete_temp()
-    vim.fn.mkdir(test_path, "p")
-    list.new(test_path .. "metadata.json")
     pad = require("sticky_pad.pad").new(function(file_name)
       require("sticky_pad.sticker").show(file_name)
     end, test_path)
+
+    vim.fn.delete(test_path, "rf")
+    vim.fn.mkdir(test_path, "p")
+    list.new(test_path .. "metadata.json")
     list.add(test_items[1])
     list.add(test_items[2])
     test_content = "this is the preview content for test.md"
