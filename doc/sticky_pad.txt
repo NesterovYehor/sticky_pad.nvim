@@ -1,0 +1,125 @@
+*sticky_pad.txt* For sticky_pad.nvim      ~
+
+==============================================================================
+CONTENTS                                             *sticky_pad.nvim*
+
+  1. Introduction...................................|sticky_pad-introduction|
+  2. Architecture...................................|sticky_pad-architecture|
+  3. Usage..........................................|sticky_pad-usage|
+     - Commands.....................................|sticky_pad-commands|
+     - Keymaps......................................|sticky_pad-keymaps|
+  4. Configuration..................................|sticky_pad-setup|
+
+==============================================================================
+INTRODUCTION                                       *sticky_pad-introduction*
+
+`sticky_pad.nvim` is a simple and lightweight note-taking plugin for Neovim.
+It lets you quickly jot down thoughts, todos, or code snippets in floating
+"sticky pads" without ever leaving your editor.
+
+==============================================================================
+
+ARCHITECTURE
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                                                                         │
+│   ┌───────────┐   ┌───────────┐    ┌───────────┐                        │
+│   │ User Cmds │   │  Keymaps  │    │  Events   │                        │
+│   │ (:Sticky*)│   │           │    │(BufWrite) │                        │
+│   └─────┬─────┘   └─────┬─────┘    └─────┬─────┘                        │
+│         │               │                │                              │
+│         └───────────────┼────────────────┘                              │
+│                         │                                               │
+│                         ▼                                               │
+│                  ┌────────────┐                                         │
+│                  │ init.lua   │ (Main API: setup(), commands)           │
+│                  └──────┬─────┘                                         │
+│                         │                                               │
+│      ┌──────────────────┼──────────────────┐                             │
+│      │                  │                  │                             │
+│      ▼                  ▼                  ▼                             │
+│┌───────────┐      ┌───────────┐      ┌───────────┐                       │
+││ pad.lua   │◀─────┤ list.lua  │      │sticker.lua│                       │
+││ (UI Logic)│      │ (Data)    │      │ (UI Logic)│                       │
+│└─────┬─────┘      └─────┬─────┘      └─────┬─────┘                       │
+│      │    2─────────────┘                  │                             │
+│      └──────────────────┐                  │                             │
+│                         │                  │                             │
+│                         ▼                  ▼                             │
+│      1           ┌────────────┐                                         │
+│      └───────────▶ core.lua   │                                         │
+│                  │ (Utilities)│                                         │
+│                  └──────┬─────┘                                         │
+│                         │                                               │
+│                         ▼                                               │
+│                  ┌────────────┐                                         │
+│                  │ config.lua │ (User Settings)                         │
+│                  └────────────┘                                         │
+│                                                                         │
+│                                  sticky_pad.nvim architecture           │
+└─────────────────────────────────────────────────────────────────────────┘
+
+==============================================================================
+USAGE                                                     *sticky_pad-usage*
+
+The plugin is centered around a few simple commands and keymaps.
+
+COMMANDS                                                *sticky_pad-commands*
+
+:StickyPadCreate
+    Opens a new, large floating window to create a new sticker. To save the
+    sticker, simply write the buffer with |:w|.
+
+:StickyPad
+    Opens the main Pad UI to browse, preview, and manage all your notes.
+
+:StickyPadShowLastUsed
+    Shows the most recently viewed sticker.
+
+:StickyPadRemove
+    Closes the currently active sticker window.
+
+KEYMAPS                                                   *sticky_pad-keymaps*
+
+These keymaps are active only in the respective windows.
+
+In the Pad Window:
+  <Enter>   Selects the current note, closes the Pad, and shows the sticker.
+  dd        Deletes the currently selected note.
+  q         Closes the Pad.
+
+==============================================================================
+CONFIGURATION                                               *sticky_pad-setup*
+
+To configure the plugin, pass a table to the `setup()` function.
+
+Example: >
+    require("sticky_pad").setup({
+      sticker = {
+        position = "bottom-right",
+        sticker_height = 20,
+      },
+      padding = 4,
+    })
+<
+
+Available options:
+
+  `sticker` (table)
+    A table containing all options related to the sticker window.
+    - `position` (string): The position of the sticker on the screen.
+      Default: "top-right"
+      Options: "top-left", "bottom-left", "bottom-right", "top-right"
+    - `sticker_height` (integer): The maximum height of the sticker window.
+      The window will shrink to fit content if it's smaller than this.
+      Default: Calculated based on width.
+    - `sticker_width` (integer): The width of the sticker window.
+      Default: Calculated as 15% of the editor width.
+
+  `padding` (integer)
+    The padding in cells from the editor edges.
+    Default: 2
+
+==============================================================================
+ vim:tw=78:ts=8:sw=4:sts=4:et:ft=help:norl:
+

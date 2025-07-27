@@ -15,14 +15,14 @@ local active_sticker = {
 
 
 local function get_full_note_conf()
-  local width = config.sticker_width
-  local height = math.floor(vim.o.lines * 0.8)
+  local width = config.sticker.width
+  local height = math.floor(vim.o.lines * 0.9)
   return {
     relative = "editor",
     width = width,
     height = height,
-    col = config.col,
-    row = config.row,
+    col = config.sticker.col,
+    row = config.sticker.row,
     border = "rounded",
     focusable = true,
     title = "sticky"
@@ -31,10 +31,10 @@ end
 
 local function get_sticker_win_conf()
   return {
-    width = config.sticker_width,
-    height = config.sticker_height,
-    row = config.row,
-    col = config.col,
+    width = config.sticker.width,
+    height = config.sticker.height,
+    row = config.sticker.row,
+    col = config.sticker.col,
     relative = "editor",
     border = "rounded",
     style = "minimal",
@@ -150,7 +150,7 @@ function M.unfold()
 end
 
 function M.get_new_line()
-  local line_count = core.get_line_number(active_sticker.buf_id, config.sticker_width)
+  local line_count = core.get_line_number(active_sticker.buf_id, config.sticker.width)
   if line_count > config.sticker_height then
     local current_line = core.get_current_line_number(active_sticker.win_id)
     if line_count - current_line > config.sticker_height then
@@ -163,13 +163,14 @@ function M.get_new_line()
 end
 
 local function normalize_scroll()
-  local line_count = core.get_line_number(active_sticker.buf_id, config.sticker_width)
-  if line_count > config.sticker_height then
-    local current_line = core.get_current_line_number(active_sticker.win_id)
-    if line_count - current_line > config.sticker_height then
-      active_sticker.top_line = current_line
+  local line_count = core.get_line_number(active_sticker.buf_id, config.sticker.width)
+  if line_count > config.sticker.height then
+    local visual_current_line = core.get_current_line_number(active_sticker.win_id)
+    if line_count - visual_current_line > config.sticker.height then
+      local real_line = vim.api.nvim_win_get_cursor(active_sticker.win_id)[1]
+      active_sticker.top_line = real_line
     else
-      active_sticker.top_line = line_count - config.sticker_height
+      active_sticker.top_line = line_count - config.sticker.height
     end
   else
     active_sticker.top_line = 1

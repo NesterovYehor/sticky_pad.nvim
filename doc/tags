@@ -1,0 +1,7 @@
+sticky_pad-commands	sticky_pad.txt	/*sticky_pad-commands*
+sticky_pad-introduction	sticky_pad.txt	/*sticky_pad-introduction*
+sticky_pad-keymaps	sticky_pad.txt	/*sticky_pad-keymaps*
+sticky_pad-setup	sticky_pad.txt	/*sticky_pad-setup*
+sticky_pad-usage	sticky_pad.txt	/*sticky_pad-usage*
+sticky_pad.nvim	sticky_pad.txt	/*sticky_pad.nvim*
+sticky_pad.txt	sticky_pad.txt	/*sticky_pad.txt*
