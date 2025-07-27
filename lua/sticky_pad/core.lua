@@ -38,7 +38,8 @@ end
 
 function Core.get_current_line_number(win_id)
   return vim.api.nvim_win_call(win_id, function()
-    return vim.fn.winline()
+    local line = vim.fn.winline()
+    return line
   end)
 end
 

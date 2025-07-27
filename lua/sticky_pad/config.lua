@@ -1,46 +1,73 @@
----@class Config
----@field sticker_width integer
----@field sticker_height integer
+---@class Sticker_Config
+---@field width integer
+---@field height integer
 ---@field col integer
 ---@field row integer
----@field padding integer
 ---@field position string
+
+---@class Config
+---@field sticker Sticker_Config
+---@field padding integer
 
 local Config = {}
 Config.__index = Config
 
-local default_width = math.floor(vim.o.columns * 0.15)
-local config = {
-  sticker_width = default_width,
-  sticker_height = math.floor(default_width / 2),
-  position = "",
-  col = 0,
-  row = 0,
-  padding = 2
-}
+-- This table holds the final, merged configuration.
+local config = {}
 
+-- Helper function to set up the default values.
+-- We use a function so we can reset it for testing.
+local function set_defaults()
+  local default_width = math.floor(vim.o.columns * 0.15)
+  config = {
+    sticker = {
+      width = default_width,
+      height = math.floor(default_width / 2),
+      position = "top-right",
+      col = vim.o.columns - default_width - 2,
+      row = 2,
+    },
+    padding = 2,
+  }
+end
+
+-- Initialize the defaults when the module is loaded.
+set_defaults()
+
+
+-- This dispatch table calculates coordinates based on the sticker's position.
+-- It now correctly references the nested config table.
 local cases = {
-  ["top-left"] = function() return { 1, 1 } end,
-  ["bottom-left"] = function() return { vim.o.lines - config.sticker_height - config.padding, 1 } end,
-  ["bottom-right"] = function()
-    return { vim.o.lines - config.sticker_height - config.padding, vim.o.columns - config.sticker_width - config.padding }
+  ["top-left"] = function()
+    return { config.padding, config.padding }
   end,
-  default = function() return { 1, vim.o.columns - config.sticker_width - config.padding } end,
+  ["bottom-left"] = function()
+    return { vim.o.lines - config.sticker.height - config.padding, config.padding }
+  end,
+  ["bottom-right"] = function()
+    return {
+      vim.o.lines - config.sticker.height - config.padding,
+      vim.o.columns - config.sticker.width - config.padding,
+    }
+  end,
+  -- Default is "top-right"
+  default = function()
+    return { config.padding, vim.o.columns - config.sticker.width - config.padding }
+  end,
 }
 
-
+-- This function merges the user's options and calculates the final position.
 function Config.set(opts)
-  for k, v in pairs(opts) do
-    if not config[k] then
-      print("Unknown option for configuraiton of pluguin: ", k)
-      goto continue
-    end
-    config[k] = v
-    ::continue::
-  end
-  local cords = (cases[config.position] or cases.default)()
-  config.row = cords[1]
-  config.col = cords[2]
+  -- Reset to defaults to ensure a clean slate before applying user options.
+  set_defaults()
+
+  -- Use vim.tbl_deep_extend to cleanly merge the user's nested options.
+  config = vim.tbl_deep_extend("force", config, opts or {})
+
+  -- Now that the config is updated, calculate the final row and column.
+  local cords = (cases[config.sticker.position] or cases.default)()
+  config.sticker.row = cords[1]
+  config.sticker.col = cords[2]
 end
 
 function Config.get()
@@ -48,3 +75,4 @@ function Config.get()
 end
 
 return Config
+

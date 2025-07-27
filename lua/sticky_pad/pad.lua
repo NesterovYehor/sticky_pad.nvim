@@ -250,9 +250,9 @@ end
 function Pad:delete_sticker()
   local current_line = core.get_current_line_number(self.floats.results.win)
   local file_name = self.results_list[current_line]
+  list.remove(file_name)
   os.remove(pad_dir .. file_name)
   table.remove(self.results_list, current_line)
-  list.remove(file_name)
 end
 
 function Pad:setup_keymaps()
