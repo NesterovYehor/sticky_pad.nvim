@@ -78,7 +78,7 @@ describe("sticker.lua", function()
     for _, win_id in ipairs(vim.api.nvim_list_wins()) do
       local config = vim.api.nvim_win_get_config(win_id)
       if config.relative ~= "" then
-        assert.equals(math.floor(vim.o.lines * 0.8), config.height)
+        assert.equals(math.floor(vim.o.lines * 0.9), config.height)
       end
     end
   end)
@@ -94,7 +94,7 @@ describe("sticker.lua", function()
     stickers.unfold()
 
     config = vim.api.nvim_win_get_config(sticker_win_id)
-    assert.equals(math.floor(vim.o.lines * 0.8), config.height)
+    assert.equals(math.floor(vim.o.lines * 0.9), config.height)
 
     stickers.fold()
 
