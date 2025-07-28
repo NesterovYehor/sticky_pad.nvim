@@ -4,7 +4,6 @@ local core = require("sticky_pad.core")
 local list = require("sticky_pad.list")
 local config = require("sticky_pad.config").get()
 
--- This is the private, internal state for the one active sticker.
 local active_sticker = {
   win_id = 0,
   buf_id = 0,
@@ -25,7 +24,7 @@ local function get_full_note_conf()
     row = config.sticker.row,
     border = "rounded",
     focusable = true,
-    title = "sticky"
+    title = "sticky.pad"
   }
 end
 
@@ -85,7 +84,6 @@ function M.create()
   vim.api.nvim_set_option_value('wrap', true, { win = win })
 
   vim.api.nvim_buf_set_name(buf, "new_sticker.md")
-
   vim.api.nvim_create_autocmd("BufWriteCmd", {
     group = augroup,
     buffer = buf,
@@ -184,11 +182,21 @@ function M.fold()
       vim.notify("Save your changes first with :w", vim.log.levels.WARN)
       return
     end
+
     normalize_scroll()
     list.update_item(active_sticker.file_name, { top_line = active_sticker.top_line })
+    list.update_item(active_sticker.file_name, { title = vim.api.nvim_buf_get_lines(active_sticker.buf_id, 0, -1, true)[1] })
 
     vim.api.nvim_win_set_config(active_sticker.win_id, get_sticker_win_conf())
     refresh_sticker()
+
+    for _, win_id in ipairs(vim.api.nvim_list_wins()) do
+      local config = vim.api.nvim_win_get_config(win_id)
+      if config.relative == "" then
+        vim.api.nvim_set_current_win(win_id)
+        break
+      end
+    end
   end
 end
 
@@ -215,3 +223,4 @@ function M.reset()
 end
 
 return M
+
