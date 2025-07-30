@@ -79,6 +79,9 @@ COMMANDS                                                *sticky_pad-commands*
 :StickyPadRemove
     Closes the currently active sticker window.
 
+:StickyPadLast
+    Open the last active sticker window.
+
 KEYMAPS                                                   *sticky_pad-keymaps*
 
 These keymaps are active only in the respective windows.
